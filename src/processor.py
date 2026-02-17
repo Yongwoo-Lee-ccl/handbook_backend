@@ -134,20 +134,53 @@ class PDFProcessor:
         if tables:
             print(f"  DEBUG: Found {len(tables)} tables on page {page_index}")
 
+        def get_text_from_region(region):
+            # Sort words by top, then left to ensure correct reading order
+            words = region.extract_words(x_tolerance=2, y_tolerance=2)
+            if not words: return ""
+            
+            # Group into lines
+            lines = []
+            if not words: return ""
+            
+            current_line = [words[0]]
+            for w in words[1:]:
+                # If same vertical level, add to current line
+                if abs(w['top'] - current_line[-1]['top']) < 3:
+                    current_line.append(w)
+                else:
+                    lines.append(current_line)
+                    current_line = [w]
+            lines.append(current_line)
+            
+            # Join words in lines and handle hyphenation
+            text_lines = []
+            for line in lines:
+                line.sort(key=lambda x: x['x0'])
+                text_lines.append(" ".join([w['text'] for w in line]))
+            
+            # Reconstruct paragraphs (basic heuristic: lines that end in periods)
+            full_text = ""
+            for i, line in enumerate(text_lines):
+                full_text += line
+                if line.endswith(('.', ':', '?', '!')):
+                    full_text += "\n\n"
+                else:
+                    full_text += " "
+            return full_text
+
         if not layout["is_double_column"]:
-            return page.extract_text(x_tolerance=1)
+            return get_text_from_region(page)
         
         # Double column extraction
         width = page.width
         mid = width / 2
         
-        # Crop left and right columns
-        # We use a small margin to avoid cutting off characters
         left_bbox = (0, 0, mid, page.height)
         right_bbox = (mid, 0, page.width, page.height)
         
-        left_text = page.crop(left_bbox).extract_text(x_tolerance=1) or ""
-        right_text = page.crop(right_bbox).extract_text(x_tolerance=1) or ""
+        left_text = get_text_from_region(page.crop(left_bbox))
+        right_text = get_text_from_region(page.crop(right_bbox))
         
         return left_text + "\n" + right_text
 

@@ -11,6 +11,10 @@ from src.llm_client import LLMClient
 def convert_pdf_to_epub(pdf_path, output_path):
     print(f"Processing {pdf_path}...")
     
+    # Ensure images directory exists
+    img_dir = "data/images"
+    os.makedirs(img_dir, exist_ok=True)
+    
     # 1. Load and Analyze
     processor = PDFProcessor(pdf_path).load()
     title = processor.metadata.get("Title", os.path.basename(pdf_path))
@@ -18,22 +22,38 @@ def convert_pdf_to_epub(pdf_path, output_path):
     
     # 2. Extract and Refine
     llm = LLMClient()
-    full_refined_text = ""
+    html_sections = []
     
     # Process first few pages for demo
-    max_pages = min(len(processor.pdf.pages), 5)
+    max_pages = min(len(processor.pdf.pages), 10)
     for i in range(max_pages):
-        print(f"  Extracting Page {i+1}...")
-        raw_text = processor.extract_text(i)
-        refined_text = llm.refine_content(raw_text)
-        full_refined_text += f"\n\n<!-- Page {i+1} -->\n" + refined_text
+        print(f"  Processing Page {i+1}...")
+        
+        # Extract text first
+        page_text = processor.extract_text(i)
+        refined_text = llm.refine_content(page_text)
+        
+        # Convert text to HTML paragraphs
+        page_html = "".join([f"<p>{p.strip()}</p>" for p in refined_text.split("\n\n") if p.strip()])
+        
+        # Identify and insert equations as images or placeholders
+        equations = processor.identify_equations(i)
+        for idx, eq in enumerate(equations):
+            if eq['strategy'] == 'image':
+                img_name = f"page_{i+1}_eq_{idx+1}.png"
+                img_path = os.path.join(img_dir, img_name)
+                processor.extract_equation_image(i, eq, img_path)
+                page_html += f'<div class="equation"><img src="{img_path}" alt="Equation" /></div>'
+            else:
+                page_html += f'<p class="equation-placeholder">[Equation Block {idx+1}]</p>'
+        
+        html_sections.append(page_html)
         
     # 3. Generate EPUB
     print(f"Generating EPUB...")
     gen = EPUBGenerator(title, author)
-    # Simple conversion to HTML paragraphs
-    html_content = "".join([f"<p>{line}</p>" for line in full_refined_text.split("\n") if line.strip()])
-    gen.add_chapter("Main Content", html_content)
+    full_content = "\n".join(html_sections)
+    gen.add_chapter("Main Content", full_content)
     gen.generate(output_path)
     
     processor.close()
