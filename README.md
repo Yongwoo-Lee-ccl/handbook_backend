@@ -11,8 +11,11 @@ A PDF-to-EPUB converter optimized for academic papers.
 
 ## Setup
 1. Create virtual environment: `python3 -m venv venv`
-2. Install dependencies: `pip install -r requirements.txt`
-3. Download test samples: `python3 scripts/download_samples.py`
+2. Activate virtual environment:
+   - Linux/macOS: `source venv/bin/activate`
+   - Windows: `venv\Scripts\activate`
+3. Install dependencies: `pip install -r requirements.txt`
+4. Download test samples: `python3 scripts/download_samples.py`
 
 ## Usage
 
