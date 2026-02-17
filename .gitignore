@@ -1,0 +1,6 @@
+venv/
+data/
+*.epub
+__pycache__/
+.pytest_cache/
+*.log

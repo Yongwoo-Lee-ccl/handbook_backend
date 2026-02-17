@@ -1,0 +1,8 @@
+requests
+pdfplumber
+pytest
+EbookLib
+pillow
+pix2tex
+paddleocr
+paddlepaddle
